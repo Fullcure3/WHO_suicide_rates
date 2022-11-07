@@ -75,18 +75,23 @@ summary_stats_barplot(suicides_clean, np.median, value='Value', category='Parent
 
 #Histogram to visualize the spread of the suicide rates of all countries together
 sns.histplot(data=suicides_clean, x='Value')
+plt.clf()
 
 #Figure level plot to aid visualization
 sns.displot(data=suicides_clean, x='Value', col='ParentLocation', col_wrap=3)
+plt.close()
 
-suicides_clean.sort_values(by='Value', ascending=False, inplace=True)
-sns.boxplot(data=suicides_clean, x='Value', y='ParentLocation')
+def sorted_boxplot(dataframe, category, value):
+    """Sorts the dataframe based on the category/column in descending order to create a sorted boxplot visualization"""
+    dataframe.sort_values(by=category, ascending=False, inplace=True)
+    sns.boxplot(data=dataframe, x=value, y=category)
+    plt.show()
 
-suicides_clean.sort_values(by='AgeRange', ascending=False, inplace=True)
-sns.boxplot(data=suicides_clean, x='Value', y='AgeRange')
+sorted_boxplot(suicides_clean, 'ParentLocation', 'Value')
 
-suicides_clean.sort_values(by='Sex', ascending=False, inplace=True)
-sns.boxplot(data=suicides_clean, x='Value', y='Sex')
+sorted_boxplot(suicides_clean, 'AgeRange', 'Value')
+
+sorted_boxplot(suicides_clean, 'Sex', 'Value')
 
 # Histogram to view overlap of suicide rates of males vs females
 sns.histplot(data=suicides_clean, x='Value', hue='Sex', bins=30)
@@ -94,24 +99,32 @@ sns.histplot(data=suicides_clean, x='Value', hue='Sex', bins=30)
 # Checking for sample sizes between regions. Ideally sample sizes between categories should be close
 suicides_clean.ParentLocation.value_counts()
 
-#Calculating std of each region to check if assumption 2 is met (std of groups should be equal)
-regions = list(suicides_clean.ParentLocation.unique())
+### Continue refactor from here
+def column_std(dataframe, column, num_value):
+    """Calculates the std of each category in a column to check for ANOVA Test assumption:\n
+    The standard deviations of the groups should be equal\n
+    Returns a list of unique categories for the column"""
+    
+    #List of unique categories in a column for std calculations
+    categories = list(dataframe[column].unique())
 
-for region in regions:
-    print(region, suicides_clean[suicides_clean.ParentLocation == region].Value.std())
+    #Prints out category and std for ANOVA Test std assumption 
+    for category in categories:
+        print(category, dataframe[dataframe[column] == category][num_value].std())
+    
+    return categories
+
+
+column_std(suicides_clean, 'ParentLocation', 'Value')
 
 #Use the zscore of the value column to reduce the effects of outliers on assumptions 2 and 3
 zscore_standard_threshold = 3
 suicides_zscored = suicides_clean[(np.abs(zscore(suicides_clean.Value)) < zscore_standard_threshold)]
 suicides_zscored.ParentLocation.value_counts()
 
-#Checking std difference after zscore to meet ANOVA assumption 2
-for region in regions:
-    print(region, suicides_zscored[suicides_zscored.ParentLocation == region].Value.std())
 
 #Checking std difference after zscore to meet ANOVA assumption 2
-for region in regions:
-    print(region, suicides_zscored[suicides_zscored.ParentLocation == region].Value.std())
+regions = column_std(suicides_zscored, 'ParentLocation', 'Value')
 
 #Dividing suicide rates by region to prep for anova test
 suicide_regions = {region:suicides_zscored.Value[suicides_zscored.ParentLocation == region] for region in regions}
@@ -142,8 +155,7 @@ suicides_ln['Value'] = np.log(suicides_ln['Value'])
 suicides_ln.head()
 
 #Calculating std of each region to check if assumption 2 is met (std of groups should be equal)
-for region in regions:
-    print(region, suicides_ln[suicides_ln.ParentLocation == region].Value.std())
+regions = column_std(suicides_ln, 'ParentLocation', 'Value')
 
 #Visualization of ln transformation distribution for assumption 3
 sns.boxplot(data=suicides_ln, x='Value', y='ParentLocation')
@@ -151,26 +163,19 @@ sns.boxplot(data=suicides_ln, x='Value', y='ParentLocation')
 sns.displot(data=suicides_ln, x='Value', col='ParentLocation', col_wrap=3)
 
 #Calculating std of each age range to check if assumption 2 is met (std of groups should be equal)
-ages = list(suicides_ln.AgeRange.unique())
-
-for age in ages:
-    print(age, suicides_ln[suicides_clean.AgeRange == age].Value.std())
+ages = column_std(suicides_ln, 'AgeRange', 'Value')
 
 #Visualization of ln transformation distribution for assumption 3
-suicides_ln.sort_values(by='AgeRange', ascending=False, inplace=True)
-sns.boxplot(data=suicides_ln, x='Value', y='AgeRange')
+sorted_boxplot(suicides_ln, 'AgeRange', 'Value')
 
+#Histogram of each category to visualize each distribution (assumption 3) 
 sns.displot(data=suicides_ln, x='Value', col='AgeRange', col_wrap=3)
 
 #Calculating std of each sex to check if assumption 2 is met (std of groups should be equal)
-sexes = list(suicides_ln.Sex.unique())
-
-for sex in sexes:
-    print(sex, suicides_ln[suicides_clean.Sex == sex].Value.std())
+sexes = column_std(suicides_ln, 'Sex', 'Value')
 
 #Visualization of ln transformation distribution for assumption 3
-suicides_ln.sort_values(by='Sex', ascending=False, inplace=True)
-sns.boxplot(data=suicides_ln, x='Value', y='Sex')
+sorted_boxplot(suicides_ln, 'Sex', 'Value')
 
 # Histogram to view overlap of suicide rates of males vs females
 sns.histplot(data=suicides_ln, x='Value', hue='Sex')
