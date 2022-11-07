@@ -48,25 +48,30 @@ suicides_clean.dtypes
 suicides_clean.isnull().sum()
 suicides_clean.describe()
 
-# Mean suicides rates including all regions to serve as a reference point in the bar graph 
-suicide_rates_mean = suicides_clean.Value.mean()
 
-# Sort values for each region in desending order for ordered barplot
-suicides_means_sorted = suicides_clean.groupby(by='ParentLocation', as_index=False).Value.mean().sort_values(by='Value', ascending=False)
+def summary_stats_barplot(dataframe, np_function, category, value):
+    """Takes the dataframe and groups and sorts the data, according to the aggregate function passed in, for seaborn visualization"""
+    
+    # Summary stat to serve as a reference vertical line in the bar graph 
+    suicide_rates = np_function(dataframe[value])
+    
+    # Sort values by category in desending order to prep for creating an ordered barplot
+    suicides_sorted = (
+                        dataframe.groupby(by=category, as_index=False)[value]
+                        .agg(np_function)
+                        .sort_values(by='Value', ascending=False)
+    )
+    
+    # Visualization of the choosen summary stat to identify trends 
+    sns.barplot(data=suicides_sorted, x=value, y=category)
+    plt.axvline(suicide_rates, linestyle='--', color='black')
+    plt.show()  
 
-# Visualization of the means to identify trends
-sns.barplot(data=suicides_means_sorted, y='ParentLocation', x='Value')
-plt.axvline(suicide_rates_mean, linestyle='--', color='black')
-
-# Median suicides rates including all regions to serve as a reference point in the bar graph 
-suicide_rates_median = suicides_clean.Value.median()
-
-# Sort values for each region in desending order for ordered barplot
-suicides_median_sorted = suicides_clean.groupby(by='ParentLocation', as_index=False).Value.median().sort_values(by='Value', ascending=False)
+# Visualization of the means to identify trends 
+summary_stats_barplot(suicides_clean, np.mean, value='Value', category='ParentLocation')
 
 # Visualization of the medians to identify trends
-sns.barplot(data=suicides_median_sorted, y='ParentLocation', x='Value')
-plt.axvline(suicide_rates_mean, linestyle='--', color='black')
+summary_stats_barplot(suicides_clean, np.median, value='Value', category='ParentLocation')
 
 #Histogram to visualize the spread of the suicide rates of all countries together
 sns.histplot(data=suicides_clean, x='Value')
