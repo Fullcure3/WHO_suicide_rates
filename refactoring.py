@@ -50,7 +50,8 @@ suicides_clean.describe()
 
 
 def summary_stats_barplot(dataframe, np_function, category, value):
-    """Takes the dataframe and groups and sorts the data, according to the aggregate function passed in, for seaborn visualization\n"""
+    """Takes the dataframe and groups and sorts the data, according to the aggregate function passed in, for seaborn visualization\n
+    Examples of functions are np.mean, np.median, etc"""
     
     # Summary stat to serve as a reference vertical line in the bar graph 
     suicide_rates = np_function(dataframe[value])
@@ -121,11 +122,24 @@ column_std(suicides_clean, 'region', 'suicide_rate')
 
 ### Continue refactor from here
 
-#Use the zscore of the value column to reduce the effects of outliers on assumptions 2 and 3
-zscore_standard_threshold = 3
-suicides_zscored = suicides_clean[(np.abs(zscore(suicides_clean.suicide_rate)) < zscore_standard_threshold)]
-suicides_zscored.region.value_counts()
+def zscore_normalization(dataframe, column, zscore_threshold=3):
+    """Requires from scipy.stats import zscore\n
+    Removes all rows that are considered outliers from a specific column based on a zscore threshold.\n
+    The values above or below the threshold are considered outliers (default +/- 3)\n
+    Prints out the number of rows removed.\n
+    Returns the dataframe with outliers removed"""
+    
+    zscore_threshold
+    # Abs to facilitate filtering of values that are above the zscore threshold
+    dataframe_zscored = dataframe[(zscore(dataframe[column].abs()) < zscore_threshold)]
 
+    records_removed = len(dataframe) - len(dataframe_zscored)
+    print(f'{records_removed} rows removed')
+    return dataframe_zscored
+
+
+#Use the zscore of the value column to reduce the effects of outliers on assumptions 2 and 3
+suicides_zscored = zscore_normalization(suicides_clean, 'suicide_rate')
 
 #Checking std difference after zscore to meet ANOVA assumption 2
 column_std(suicides_zscored, 'region', 'suicide_rate')
@@ -144,16 +158,32 @@ def anova_test(dataframe, column, value):
     fstat, pval = f_oneway(*category_data)
     print(pval)
 
+def two_tail_ttest(dataframe, column, value, **kwargs):
+    """Preps data then performs an two_tail TTest based on the binary categories for the column of interest\n
+    value = numeric data to test the choosen column categories against\n"""
+    
+    #List of unique categories from a column to prep for data filtering  
+    categories = unique_categories(dataframe, column)
+
+    #Data of each unique category to unpack as arguements for ttest_ind (two tail ttest)
+    category_data = tuple([dataframe[value][dataframe[column] == category] for category in categories])
+    
+    #Two Tail TTest to determine p-value significance
+    fstat, pval = ttest_ind(*category_data, **kwargs)
+    print(pval)
+
+# ANOVA Test to determine p-value significance
 anova_test(suicides_zscored, 'region', 'suicide_rate')
 
-def tukeys_test(dataframe, column, value):
+def tukeys_test(dataframe, column, value, pval_threshold=0.05):
     """Prints out the results of Tukey's Range Test to determine which pairings of an ANOVA Test are significant\n
-    Uses standard significance threshold of 0.05"""
+    Uses standard significance threshold of 0.05 by default"""
        
-    pval_threshold = 0.05
+    pval_threshold
     tukey_results = pairwise_tukeyhsd(dataframe[value], dataframe[column], pval_threshold)
     print(tukey_results)
 
+# Tukey's Range Test to determine which pairings of an ANOVA Test are significant
 tukeys_test(suicides_zscored, 'region', 'suicide_rate')
 
 
@@ -203,11 +233,5 @@ anova_test(suicides_ln, 'age_range', 'suicide_rate')
 #Tukey's Range Test to determine which pairings are significant
 tukeys_test(suicides_ln, 'age_range', 'suicide_rate')
 
-#Filtering suicide rates by age range to prep for anova test
-sexes = unique_categories(suicides_ln, 'sex')
-suicide_sexes = {sex:suicides_ln.suicide_rate[suicides_ln.sex == sex] for sex in sexes}
-print(suicide_sexes.keys())
-
-#2 Sample T test to determine if the pval is significant
-tstat, pval = ttest_ind(suicide_sexes['Male'], suicide_sexes['Female'])
-print(pval)
+# Continue refactoring here
+two_tail_ttest(suicides_ln, 'sex', 'suicide_rate')
